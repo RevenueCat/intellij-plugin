@@ -22,7 +22,7 @@ This plugin provides insights about your RevenueCat project through an integrate
 
 You can download the RevenueCat Plugin with the steps below:
 
-0. Download the plugin file below:
+0. Download the 'zip' plugin file on the [release page](https://github.com/RevenueCat/intellij-plugin/releases/tag/1.0.0).
 1. Open IntelliJ IDEA
 2. Go to **Settings/Preferences** (⌘, on Mac or Ctrl+Alt+S on Windows/Linux)
 3. Navigate to **Plugins**
