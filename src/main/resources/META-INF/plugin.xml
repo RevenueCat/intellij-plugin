@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2025 RevenueCat, Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<idea-plugin>
+    <id>com.revenuecat.plugin</id>
+    <name>RevenueCat Dashboard</name>
+    <vendor email="support@revenuecat.com" url="https://www.revenuecat.com">RevenueCat</vendor>
+
+    <description><![CDATA[
+    RevenueCat Dashboard integration for IntelliJ IDEA and Android Studio.
+    <br/>
+    <br/>
+    Features:
+    <ul>
+        <li>Connect to your RevenueCat Dashboard directly from your IDE</li>
+        <li>Receive real-time notifications for new purchases</li>
+        <li>View revenue summaries and metrics (MRR, active trials, subscriptions)</li>
+        <li>Monitor subscription status and customer data</li>
+        <li>Browse and inspect offerings and packages</li>
+        <li>Track subscription business milestones and achievements</li>
+        <li>SDK Integration Wizard for Android, Flutter, and Kotlin Multiplatform</li>
+        <li>Paywall UI configuration with automatic dependency management</li>
+        <li>SDK update notifications with latest version detection</li>
+        <li>RevenueCat blog notifications for latest news</li>
+    </ul>
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>1.0.0</h3>
+    <ul>
+        <li>Initial release</li>
+        <li>RevenueCat API v2 integration</li>
+        <li>Settings page for API key configuration</li>
+        <li>Revenue summary view</li>
+        <li>Purchase notifications</li>
+    </ul>
+    ]]></change-notes>
+
+    <!-- Product and plugin compatibility -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Settings -->
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.revenuecat.plugin.settings.RevenueCatSettingsConfigurable"
+                id="com.revenuecat.plugin.settings.RevenueCatSettingsConfigurable"
+                displayName="RevenueCat"/>
+
+        <applicationService
+                serviceImplementation="com.revenuecat.plugin.settings.RevenueCatSettingsState"/>
+
+        <!-- Tool Window -->
+        <toolWindow
+                id="RevenueCat"
+                anchor="right"
+                factoryClass="com.revenuecat.plugin.ui.RevenueCatToolWindowFactory"
+                icon="/icons/revenuecat.svg"/>
+
+        <!-- Services -->
+        <applicationService
+                serviceImplementation="com.revenuecat.plugin.services.RevenueCatApiService"/>
+
+        <applicationService
+                serviceImplementation="com.revenuecat.plugin.services.RevenueCatOAuthService"/>
+
+        <applicationService
+                serviceImplementation="com.revenuecat.plugin.services.RevenueCatWebhookServer"/>
+
+        <projectService
+                serviceImplementation="com.revenuecat.plugin.services.PurchaseNotificationService"/>
+
+        <!-- Notification Group -->
+        <notificationGroup id="RevenueCat Notifications" displayType="BALLOON"/>
+
+        <!-- Startup Activity -->
+        <postStartupActivity implementation="com.revenuecat.plugin.listeners.ProjectStartupActivity"/>
+        <postStartupActivity implementation="com.revenuecat.plugin.services.SdkUpdateNotificationService"/>
+        <postStartupActivity implementation="com.revenuecat.plugin.services.BlogNotificationService"/>
+    </extensions>
+
+    <actions>
+        <!-- Refresh action in tool window -->
+        <action
+                id="com.revenuecat.plugin.actions.RefreshDataAction"
+                class="com.revenuecat.plugin.actions.RefreshDataAction"
+                text="Refresh RevenueCat Data"
+                description="Refresh RevenueCat data from the API"
+                icon="AllIcons.Actions.Refresh"/>
+    </actions>
+</idea-plugin>
