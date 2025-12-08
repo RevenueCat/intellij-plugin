@@ -20,9 +20,12 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
+import com.revenuecat.plugin.ai.AIModelOption
+import com.revenuecat.plugin.ai.AIProvider
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JPanel
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
@@ -53,6 +56,12 @@ class RevenueCatSettingsComponent {
   private val oauthClientSecretField = JBPasswordField()
   private val oauthStatusLabel = JBLabel()
   private val authorizeButton = JButton("Authorize with RevenueCat")
+
+  // AI Assistant fields
+  private val enableAICheckBox = JBCheckBox("Enable AI Assistant")
+  private val aiProviderCombo = JComboBox(AIProvider.entries.map { it.displayName }.toTypedArray())
+  private val aiModelCombo = JComboBox<String>()
+  private val aiApiKeyField = JBPasswordField()
 
   init {
     mainPanel = FormBuilder.createFormBuilder()
@@ -129,10 +138,46 @@ class RevenueCatSettingsComponent {
       )
       .addSeparator(5)
       .addComponent(startNgrokButton, 0)
+      .addSeparator(20)
+      .addComponent(JBLabel("<html><b>AI Assistant Settings</b></html>"), 0)
+      .addComponentToRightColumn(
+        JBLabel(
+          "<html><small>Use AI to query your RevenueCat metrics and get help</small></html>",
+        ),
+        0,
+      )
+      .addSeparator(10)
+      .addComponent(enableAICheckBox, 0)
+      .addSeparator(5)
+      .addLabeledComponent(
+        JBLabel("AI Provider:"),
+        aiProviderCombo,
+        1,
+        false,
+      )
+      .addSeparator(5)
+      .addLabeledComponent(
+        JBLabel("Model:"),
+        aiModelCombo,
+        1,
+        false,
+      )
+      .addSeparator(5)
+      .addLabeledComponent(
+        JBLabel("API Key:"),
+        aiApiKeyField,
+        1,
+        false,
+      )
+      .addComponentToRightColumn(
+        JBLabel("<html><small>Your OpenAI or Anthropic API key</small></html>"),
+        0,
+      )
       .addComponentFillVertically(JPanel(), 0)
       .panel
 
     enableNotificationsCheckBox.isSelected = true
+    setupAIControls()
     stopWebhookButton.isEnabled = false
 
     // Add listener to enable/disable webhook controls based on notifications checkbox
@@ -314,5 +359,96 @@ class RevenueCatSettingsComponent {
         authorizeButton.text = "Authorize with RevenueCat"
       }
     }
+  }
+
+  // AI Settings methods
+  private fun setupAIControls() {
+    // Initialize model combo based on selected provider
+    updateModelCombo()
+
+    // Add listener to update models when provider changes
+    aiProviderCombo.addActionListener {
+      updateModelCombo()
+    }
+
+    // Add listener to enable/disable AI controls
+    enableAICheckBox.addActionListener {
+      updateAIControlsState()
+    }
+
+    updateAIControlsState()
+  }
+
+  private fun updateModelCombo() {
+    val selectedProviderIndex = aiProviderCombo.selectedIndex
+    val selectedProvider = AIProvider.entries[selectedProviderIndex]
+
+    aiModelCombo.removeAllItems()
+    AIModelOption.entries
+      .filter { it.provider == selectedProvider }
+      .forEach { aiModelCombo.addItem(it.displayName) }
+
+    if (aiModelCombo.itemCount > 0) {
+      aiModelCombo.selectedIndex = 0
+    }
+  }
+
+  private fun updateAIControlsState() {
+    val enabled = enableAICheckBox.isSelected
+    aiProviderCombo.isEnabled = enabled
+    aiModelCombo.isEnabled = enabled
+    aiApiKeyField.isEnabled = enabled
+  }
+
+  // AI getters/setters
+  fun isAIEnabled(): Boolean = enableAICheckBox.isSelected
+
+  fun setAIEnabled(enabled: Boolean) {
+    enableAICheckBox.isSelected = enabled
+    updateAIControlsState()
+  }
+
+  fun getAIProvider(): String {
+    val selectedIndex = aiProviderCombo.selectedIndex
+    return if (selectedIndex >= 0) AIProvider.entries[selectedIndex].name else AIProvider.OPENAI.name
+  }
+
+  fun setAIProvider(provider: String) {
+    val providerEnum = AIProvider.entries.find { it.name == provider } ?: AIProvider.OPENAI
+    aiProviderCombo.selectedIndex = AIProvider.entries.indexOf(providerEnum)
+    updateModelCombo()
+  }
+
+  fun getAIModel(): String {
+    val selectedProviderIndex = aiProviderCombo.selectedIndex
+    val selectedProvider = AIProvider.entries[selectedProviderIndex]
+    val modelIndex = aiModelCombo.selectedIndex
+
+    val modelsForProvider = AIModelOption.entries.filter { it.provider == selectedProvider }
+    return if (modelIndex >= 0 && modelIndex < modelsForProvider.size) {
+      modelsForProvider[modelIndex].name
+    } else {
+      AIModelOption.GPT_4O_MINI.name
+    }
+  }
+
+  fun setAIModel(model: String) {
+    val modelOption = AIModelOption.entries.find { it.name == model }
+    if (modelOption != null) {
+      // First set the provider
+      setAIProvider(modelOption.provider.name)
+      // Then find and select the model in the combo
+      val modelsForProvider = AIModelOption.entries.filter { it.provider == modelOption.provider }
+      val modelIndex = modelsForProvider.indexOf(modelOption)
+      if (modelIndex >= 0) {
+        aiModelCombo.selectedIndex = modelIndex
+      }
+    }
+  }
+
+  fun getAIApiKey(): String = String(aiApiKeyField.password)
+
+  fun setAIApiKey(apiKey: String) {
+    aiApiKeyField.text = apiKey
   }
 }

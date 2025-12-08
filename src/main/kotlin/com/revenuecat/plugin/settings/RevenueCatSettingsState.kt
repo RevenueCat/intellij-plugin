@@ -104,6 +104,12 @@ class RevenueCatSettingsState : PersistentStateComponent<RevenueCatSettingsState
   // Onboarding settings
   var hasCompletedOnboarding: Boolean = false // Whether user has seen the onboarding tooltips
 
+  // AI Agent settings
+  var aiApiKey: String = "" // API key for AI provider (OpenAI or Anthropic)
+  var aiProvider: String = "OPENAI" // OPENAI or ANTHROPIC
+  var aiModel: String = "GPT_4O_MINI" // Default model
+  var aiEnabled: Boolean = false // Whether AI assistant is enabled
+
   override fun getState(): RevenueCatSettingsState = this
 
   override fun loadState(state: RevenueCatSettingsState) {
@@ -182,5 +188,12 @@ class RevenueCatSettingsState : PersistentStateComponent<RevenueCatSettingsState
         newCache,
       )
     }
+  }
+
+  /**
+   * Check if AI assistant is configured
+   */
+  fun isAIConfigured(): Boolean {
+    return aiEnabled && aiApiKey.isNotBlank()
   }
 }

@@ -15,9 +15,10 @@
  */
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.21"
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.21"
-    id("org.jetbrains.compose") version "1.5.11"
+    id("org.jetbrains.kotlin.jvm") version "2.1.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.0"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
+    id("org.jetbrains.compose") version "1.7.3"
     id("org.jetbrains.intellij") version "1.17.2"
     id("com.diffplug.spotless") version "6.25.0"
 }
@@ -37,12 +38,20 @@ dependencies {
     implementation(compose.material3)
     implementation("io.coil-kt.coil3:coil-compose:3.0.0-rc01")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.0-rc01")
+
+    // Koog AI Agent Framework
+    implementation("ai.koog:koog-agents:0.5.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+
+    // Markdown rendering
+    implementation("org.jetbrains:markdown:0.7.3")
+
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.1")
 }
 
 intellij {
-    version.set("2023.2.5")
+    version.set("2024.2")
     type.set("IC") // IntelliJ IDEA Community Edition
     plugins.set(listOf())
 }

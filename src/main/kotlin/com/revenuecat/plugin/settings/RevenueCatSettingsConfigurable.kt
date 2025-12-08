@@ -48,7 +48,11 @@ class RevenueCatSettingsConfigurable : Configurable {
       component.isNotificationsEnabled() != settings.enableNotifications ||
       component.isWebhookEnabled() != settings.enableWebhook ||
       component.getWebhookPort() != settings.webhookPort ||
-      component.getNgrokPath() != settings.ngrokPath
+      component.getNgrokPath() != settings.ngrokPath ||
+      component.isAIEnabled() != settings.aiEnabled ||
+      component.getAIProvider() != settings.aiProvider ||
+      component.getAIModel() != settings.aiModel ||
+      component.getAIApiKey() != settings.aiApiKey
   }
 
   override fun apply() {
@@ -89,6 +93,12 @@ class RevenueCatSettingsConfigurable : Configurable {
     settings.webhookPort = component.getWebhookPort()
     settings.ngrokPath = component.getNgrokPath()
 
+    // Save AI settings
+    settings.aiEnabled = component.isAIEnabled()
+    settings.aiProvider = component.getAIProvider()
+    settings.aiModel = component.getAIModel()
+    settings.aiApiKey = component.getAIApiKey()
+
     // Force reinitialize the API client with new settings
     com.revenuecat.plugin.services.RevenueCatApiService.getInstance().reinitializeClient()
   }
@@ -104,6 +114,12 @@ class RevenueCatSettingsConfigurable : Configurable {
     component.setWebhookEnabled(settings.enableWebhook)
     component.setWebhookPort(settings.webhookPort)
     component.setNgrokPath(settings.ngrokPath)
+
+    // Load AI settings
+    component.setAIEnabled(settings.aiEnabled)
+    component.setAIProvider(settings.aiProvider)
+    component.setAIModel(settings.aiModel)
+    component.setAIApiKey(settings.aiApiKey)
 
     setupWebhookButtons(component)
   }

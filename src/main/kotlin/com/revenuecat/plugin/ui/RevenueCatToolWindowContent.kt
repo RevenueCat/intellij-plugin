@@ -22,15 +22,18 @@ import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.Toggleable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.ui.JBColor
+import com.intellij.ui.JBSplitter
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
+import com.revenuecat.plugin.ai.AIChatPanel
 import com.revenuecat.plugin.api.models.RevenueSummary
 import com.revenuecat.plugin.api.models.Subscription
 import com.revenuecat.plugin.onboarding.OnboardingTooltipManager
@@ -71,8 +74,17 @@ class RevenueCatToolWindowContent(private val project: Project) {
   private val contentPanel = JBPanel<JBPanel<*>>()
   private val apiService = RevenueCatApiService.getInstance()
 
+  // AI Assistant panel
+  private val aiChatPanel = AIChatPanel()
+  private var isAIPanelVisible = false
+  private val splitter = JBSplitter(false, 0.35f)
+  private val mainScrollPane = JBScrollPane(contentPanel)
+
   // Toolbar component reference for onboarding
   private var toolbarComponent: JComponent? = null
+
+  // Reference to AI action for toggle state
+  private var aiAssistantAction: AIAssistantAction? = null
 
   // Onboarding manager
   private val onboardingManager = OnboardingTooltipManager {
@@ -99,14 +111,44 @@ class RevenueCatToolWindowContent(private val project: Project) {
     contentPanel.layout = BoxLayout(contentPanel, BoxLayout.Y_AXIS)
     contentPanel.border = JBUI.Borders.empty(10)
 
-    val scrollPane = JBScrollPane(contentPanel)
-    scrollPane.border = JBUI.Borders.empty()
+    mainScrollPane.border = JBUI.Borders.empty()
+
+    // Setup splitter with AI panel on left, main content on right
+    splitter.firstComponent = null // AI panel hidden initially
+    splitter.secondComponent = mainScrollPane
+    splitter.dividerWidth = 3
 
     mainPanel.toolbar = createToolbar()
-    mainPanel.setContent(scrollPane)
+    mainPanel.setContent(splitter)
 
     // Set minimum width for the tool window
     mainPanel.minimumSize = java.awt.Dimension(350, 0)
+  }
+
+  /**
+   * Toggle the AI Assistant panel visibility
+   */
+  private fun toggleAIPanel() {
+    isAIPanelVisible = !isAIPanelVisible
+
+    if (isAIPanelVisible) {
+      // Wrap AI panel in a scroll pane with border
+      val aiPanelWrapper = JBPanel<JBPanel<*>>(BorderLayout())
+      aiPanelWrapper.border = BorderFactory.createMatteBorder(0, 0, 0, 1, JBColor.border())
+      aiPanelWrapper.add(aiChatPanel, BorderLayout.CENTER)
+      aiPanelWrapper.minimumSize = java.awt.Dimension(250, 0)
+
+      splitter.firstComponent = aiPanelWrapper
+      splitter.proportion = 0.4f
+    } else {
+      splitter.firstComponent = null
+    }
+
+    // Update the action's toggle state
+    aiAssistantAction?.updateToggleState(isAIPanelVisible)
+
+    mainPanel.revalidate()
+    mainPanel.repaint()
   }
 
   private fun createToolbar(): JComponent {
@@ -119,6 +161,9 @@ class RevenueCatToolWindowContent(private val project: Project) {
     actionGroup.add(MilestoneAction())
     actionGroup.add(ReleaseNotesAction())
     actionGroup.add(BlogAction())
+    actionGroup.addSeparator()
+    aiAssistantAction = AIAssistantAction()
+    actionGroup.add(aiAssistantAction!!)
 
     val toolbar = ActionManager.getInstance()
       .createActionToolbar(ActionPlaces.TOOLBAR, actionGroup, true)
@@ -189,6 +234,16 @@ class RevenueCatToolWindowContent(private val project: Project) {
         description = "Read the latest articles from RevenueCat blog. " +
           "Enable notifications to get updates on new posts.",
         targetComponentFinder = { findToolbarButton(5) },
+      ),
+    )
+
+    // AI Assistant button (index 6)
+    steps.add(
+      OnboardingTooltipManager.TooltipStep(
+        title = "AI Assistant",
+        description = "Chat with the AI assistant to query metrics, " +
+          "get help with RevenueCat integration, and more.",
+        targetComponentFinder = { findToolbarButton(6) },
       ),
     )
 
@@ -1529,6 +1584,29 @@ class RevenueCatToolWindowContent(private val project: Project) {
   ) {
     override fun actionPerformed(e: AnActionEvent) {
       BlogArticlesDialog(project).show()
+    }
+  }
+
+  private inner class AIAssistantAction :
+    AnAction(
+      "AI Assistant",
+      "Toggle AI Assistant panel",
+      AllIcons.Diff.MagicResolve,
+    ),
+    Toggleable {
+    private var isSelected = false
+
+    override fun actionPerformed(e: AnActionEvent) {
+      toggleAIPanel()
+    }
+
+    override fun update(e: AnActionEvent) {
+      super.update(e)
+      Toggleable.setSelected(e.presentation, isSelected)
+    }
+
+    fun updateToggleState(selected: Boolean) {
+      isSelected = selected
     }
   }
 
