@@ -35,6 +35,7 @@
         <li>Paywall UI configuration with automatic dependency management</li>
         <li>SDK update notifications with latest version detection</li>
         <li>RevenueCat blog notifications for latest news</li>
+        <li>AI Assistant powered by Koog for natural language queries</li>
     </ul>
     ]]></description>
 
@@ -79,6 +80,9 @@
 
         <applicationService
                 serviceImplementation="com.revenuecat.plugin.services.RevenueCatWebhookServer"/>
+
+        <applicationService
+                serviceImplementation="com.revenuecat.plugin.ai.RevenueCatAIAgentService"/>
 
         <projectService
                 serviceImplementation="com.revenuecat.plugin.services.PurchaseNotificationService"/>
