@@ -27,6 +27,9 @@ import com.revenuecat.plugin.settings.RevenueCatSettingsState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.intellij.markdown.flavours.commonmark.CommonMarkFlavourDescriptor
+import org.intellij.markdown.html.HtmlGenerator
+import org.intellij.markdown.parser.MarkdownParser
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -62,6 +65,10 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
   private val clearButton = JButton()
   private val scope = CoroutineScope(Dispatchers.Default)
   private var scrollPane: JBScrollPane? = null
+
+  // Markdown parser for rendering AI responses
+  private val markdownFlavour = CommonMarkFlavourDescriptor()
+  private val markdownParser = MarkdownParser(markdownFlavour)
 
   private data class ChatMessage(
     val content: String,
@@ -196,28 +203,32 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
     if (!settings.isAIConfigured()) {
       addMessage(
         """
-        <b>Welcome to RevenueCat AI Assistant!</b><br><br>
-        To get started, please configure your AI settings:<br>
-        1. Go to <b>Settings</b> → <b>RevenueCat</b> → <b>AI Settings</b><br>
-        2. Enable AI Assistant<br>
-        3. Enter your API key (OpenAI or Anthropic)<br>
-        4. Select your preferred model<br><br>
-        Once configured, you can ask questions like:<br>
-        • "Show me my current metrics"<br>
-        • "What offerings do I have configured?"<br>
-        • "How do I set up paywalls?"
+        **Welcome to RevenueCat AI Assistant!**
+
+        To get started, please configure your AI settings:
+        1. Go to **Settings** → **RevenueCat** → **AI Settings**
+        2. Enable AI Assistant
+        3. Enter your API key (OpenAI, Anthropic, or Google)
+        4. Select your preferred model
+
+        Once configured, you can ask questions like:
+        - "Show me my current metrics"
+        - "What offerings do I have configured?"
+        - "How do I set up paywalls?"
         """.trimIndent(),
         isUser = false,
       )
     } else {
       addMessage(
         """
-        <b>Hello! I'm your RevenueCat AI Assistant.</b><br><br>
-        I can help you with:<br>
-        • 📊 Viewing subscription metrics (MRR, trials, revenue)<br>
-        • 📦 Exploring your offerings and packages<br>
-        • 🔧 Checking your project configuration<br>
-        • 📚 Finding documentation and resources<br><br>
+        **Hello! I'm your RevenueCat AI Assistant.**
+
+        I can help you with:
+        - 📊 Viewing subscription metrics (MRR, trials, revenue)
+        - 📦 Exploring your offerings and packages
+        - 🔧 Checking your project configuration
+        - 📚 Finding documentation and resources
+
         What would you like to know?
         """.trimIndent(),
         isUser = false,
@@ -236,7 +247,7 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
     if (!settings.isAIConfigured()) {
       addMessage(
         "AI Assistant is not configured. Please set up your API key in " +
-          "<b>Settings → RevenueCat → AI Settings</b>.",
+          "**Settings → RevenueCat → AI Settings**.",
         isUser = false,
         isError = true,
       )
@@ -257,7 +268,7 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
 
         result.fold(
           onSuccess = { response ->
-            addMessage(formatResponse(response), isUser = false)
+            addMessage(response, isUser = false)
           },
           onFailure = { error ->
             addMessage("Error: ${error.message}", isUser = false, isError = true)
@@ -267,27 +278,24 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
     }
   }
 
-  private fun formatResponse(response: String): String {
-    // Convert markdown-style formatting to HTML
-    return response
-      .replace("**", "<b>", "</b>")
-      .replace("```", "<pre>", "</pre>")
-      .replace("\n", "<br>")
-      .replace("- ", "• ")
+  private fun markdownToHtml(markdown: String): String {
+    return try {
+      val parsedTree = markdownParser.buildMarkdownTreeFromString(markdown)
+      val html = HtmlGenerator(markdown, parsedTree, markdownFlavour).generateHtml()
+      // Remove the outer <body> tags that the generator adds
+      html.removePrefix("<body>").removeSuffix("</body>")
+    } catch (e: Exception) {
+      // Fallback to escaping HTML if parsing fails
+      escapeHtml(markdown)
+    }
   }
 
-  private fun String.replace(marker: String, openTag: String, closeTag: String): String {
-    var result = this
-    var isOpen = false
-    while (result.contains(marker)) {
-      result = if (isOpen) {
-        result.replaceFirst(marker, closeTag)
-      } else {
-        result.replaceFirst(marker, openTag)
-      }
-      isOpen = !isOpen
-    }
-    return result
+  private fun escapeHtml(text: String): String {
+    return text
+      .replace("&", "&amp;")
+      .replace("<", "&lt;")
+      .replace(">", "&gt;")
+      .replace("\n", "<br>")
   }
 
   private fun addMessage(
@@ -425,17 +433,30 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
 
     // Add rules one at a time with simple CSS (Swing doesn't support CSS3)
     styleSheet.addRule("body { font-size: 13pt; color: $colorHex; margin: 0; padding: 0; }")
-    styleSheet.addRule("b { font-weight: bold; }")
-    styleSheet.addRule("i { font-style: italic; }")
-    styleSheet.addRule("pre { background-color: #F5F5F5; padding: 8px; font-size: 12pt; }")
+    styleSheet.addRule("p { margin: 4px 0; }")
+    styleSheet.addRule("strong { font-weight: bold; }")
+    styleSheet.addRule("em { font-style: italic; }")
+    styleSheet.addRule(
+      "code { font-family: monospace; background-color: #E8E8E8; padding: 2px 4px; }",
+    )
+    styleSheet.addRule(
+      "pre { background-color: #F5F5F5; padding: 8px; font-size: 11pt; font-family: monospace; }",
+    )
+    styleSheet.addRule("ul { margin: 4px 0; padding-left: 20px; }")
+    styleSheet.addRule("ol { margin: 4px 0; padding-left: 20px; }")
+    styleSheet.addRule("li { margin: 2px 0; }")
+    styleSheet.addRule("h1 { font-size: 16pt; font-weight: bold; margin: 8px 0 4px 0; }")
+    styleSheet.addRule("h2 { font-size: 15pt; font-weight: bold; margin: 6px 0 4px 0; }")
+    styleSheet.addRule("h3 { font-size: 14pt; font-weight: bold; margin: 4px 0 2px 0; }")
+    styleSheet.addRule("a { color: #1976D2; }")
 
     kit.styleSheet = styleSheet
     textPane.editorKit = kit
 
-    val htmlContent = if (message.isLoading) {
-      "<i>${message.content}</i>"
-    } else {
-      message.content
+    val htmlContent = when {
+      message.isLoading -> "<i>${message.content}</i>"
+      message.isUser -> escapeHtml(message.content)
+      else -> markdownToHtml(message.content)
     }
     textPane.text = "<html><body>$htmlContent</body></html>"
 

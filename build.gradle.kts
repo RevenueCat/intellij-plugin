@@ -43,6 +43,9 @@ dependencies {
     implementation("ai.koog:koog-agents:0.5.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 
+    // Markdown rendering
+    implementation("org.jetbrains:markdown:0.7.3")
+
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.1")
 }
