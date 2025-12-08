@@ -309,7 +309,7 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
 
     val messageRow = createMessageRow(message)
     chatHistoryPanel.add(messageRow)
-    chatHistoryPanel.add(Box.createVerticalStrut(6))
+    chatHistoryPanel.add(Box.createVerticalStrut(JBUI.scale(5)))
 
     chatHistoryPanel.revalidate()
     chatHistoryPanel.repaint()

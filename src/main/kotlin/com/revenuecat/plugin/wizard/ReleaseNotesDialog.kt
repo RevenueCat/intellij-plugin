@@ -27,16 +27,21 @@ import com.intellij.ui.components.JBTabbedPane
 import com.intellij.util.ui.JBUI
 import com.revenuecat.plugin.services.GitHubVersionService
 import com.revenuecat.plugin.settings.RevenueCatSettingsState
+import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
+import org.intellij.markdown.html.HtmlGenerator
+import org.intellij.markdown.parser.MarkdownParser
 import java.awt.BorderLayout
 import java.awt.Cursor
 import java.awt.Desktop
 import java.net.URI
 import javax.swing.Action
 import javax.swing.JComponent
+import javax.swing.JEditorPane
 import javax.swing.JPanel
-import javax.swing.JTextArea
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
+import javax.swing.text.html.HTMLEditorKit
+import javax.swing.text.html.StyleSheet
 
 /**
  * Dialog to display release notes for Android, KMP, Flutter, iOS, and React Native SDKs
@@ -50,6 +55,10 @@ class ReleaseNotesDialog(project: Project?) : DialogWrapper(project) {
   private val flutterPanel = createLoadingPanel()
   private val iosPanel = createLoadingPanel()
   private val reactNativePanel = createLoadingPanel()
+
+  // Markdown parser using GitHub Flavored Markdown for release notes
+  private val markdownFlavour = GFMFlavourDescriptor()
+  private val markdownParser = MarkdownParser(markdownFlavour)
 
   // Notification checkboxes
   private val androidNotifyCheckbox =
@@ -197,16 +206,9 @@ class ReleaseNotesDialog(project: Project?) : DialogWrapper(project) {
 
       panel.add(headerPanel, BorderLayout.NORTH)
 
-      // Release notes as plain text
-      val textArea = JTextArea(releaseInfo.body)
-      textArea.isEditable = false
-      textArea.lineWrap = true
-      textArea.wrapStyleWord = true
-      textArea.background = panel.background
-      textArea.font = textArea.font.deriveFont(13f)
-      textArea.caretPosition = 0
-
-      val scrollPane = JBScrollPane(textArea)
+      // Release notes rendered as markdown
+      val editorPane = createMarkdownPane(releaseInfo.body)
+      val scrollPane = JBScrollPane(editorPane)
       scrollPane.border = JBUI.Borders.empty()
       panel.add(scrollPane, BorderLayout.CENTER)
 
@@ -229,6 +231,69 @@ class ReleaseNotesDialog(project: Project?) : DialogWrapper(project) {
       "Published: $date"
     } catch (e: Exception) {
       isoDate
+    }
+  }
+
+  private fun createMarkdownPane(markdown: String): JEditorPane {
+    val editorPane = JEditorPane()
+    editorPane.contentType = "text/html"
+    editorPane.isEditable = false
+    editorPane.background = JBColor.PanelBackground
+    editorPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
+
+    // Setup HTML styling
+    val kit = HTMLEditorKit()
+    val styleSheet = StyleSheet()
+    val textColor = JBColor.foreground()
+    val colorHex = String.format("#%06X", textColor.rgb and 0xFFFFFF)
+    val bgColor = JBColor.PanelBackground
+    val bgColorHex = String.format("#%06X", bgColor.rgb and 0xFFFFFF)
+
+    // Add CSS rules for markdown elements
+    styleSheet.addRule(
+      "body { font-size: 13pt; color: $colorHex; background-color: $bgColorHex; margin: 0; padding: 0; }",
+    )
+    styleSheet.addRule("p { margin: 8px 0; }")
+    styleSheet.addRule("strong { font-weight: bold; }")
+    styleSheet.addRule("em { font-style: italic; }")
+    styleSheet.addRule("code { font-family: monospace; }")
+    styleSheet.addRule("pre { font-size: 11pt; font-family: monospace; margin: 8px 0; }")
+    styleSheet.addRule("ul { margin: 8px 0; padding-left: 24px; }")
+    styleSheet.addRule("ol { margin: 8px 0; padding-left: 24px; }")
+    styleSheet.addRule("li { margin: 4px 0; }")
+    styleSheet.addRule("h1 { font-size: 18pt; font-weight: bold; margin: 16px 0 8px 0; }")
+    styleSheet.addRule("h2 { font-size: 16pt; font-weight: bold; margin: 14px 0 6px 0; }")
+    styleSheet.addRule("h3 { font-size: 14pt; font-weight: bold; margin: 12px 0 4px 0; }")
+    styleSheet.addRule("h4 { font-size: 13pt; font-weight: bold; margin: 10px 0 4px 0; }")
+    styleSheet.addRule("a { color: #1976D2; }")
+    styleSheet.addRule(
+      "blockquote { margin: 8px 0; padding-left: 12px; border-left: 3px solid #DDD; }",
+    )
+    styleSheet.addRule("hr { border: none; border-top: 1px solid #DDD; margin: 16px 0; }")
+
+    kit.styleSheet = styleSheet
+    editorPane.editorKit = kit
+
+    val htmlContent = markdownToHtml(markdown)
+    editorPane.text = "<html><body>$htmlContent</body></html>"
+    editorPane.caretPosition = 0
+
+    return editorPane
+  }
+
+  private fun markdownToHtml(markdown: String): String {
+    return try {
+      val parsedTree = markdownParser.buildMarkdownTreeFromString(markdown)
+      val html = HtmlGenerator(markdown, parsedTree, markdownFlavour).generateHtml()
+      // Remove the outer <body> tags that the generator adds
+      html.removePrefix("<body>").removeSuffix("</body>")
+    } catch (e: Exception) {
+      // Fallback to escaping HTML if parsing fails
+      markdown
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\n", "<br>")
     }
   }
 }
