@@ -33,6 +33,8 @@ import org.intellij.markdown.parser.MarkdownParser
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
+import java.awt.Cursor
+import java.awt.Desktop
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
@@ -41,7 +43,10 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.awt.geom.RoundRectangle2D
+import java.net.URI
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
@@ -94,7 +99,7 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
 
     // Chat history area with custom background
     chatHistoryPanel.layout = BoxLayout(chatHistoryPanel, BoxLayout.Y_AXIS)
-    chatHistoryPanel.border = JBUI.Borders.empty(12)
+    chatHistoryPanel.border = JBUI.Borders.empty(12, 12, 20, 12)
     chatHistoryPanel.background = JBColor(0xFAFAFA, 0x2B2B2B)
 
     scrollPane = JBScrollPane(chatHistoryPanel)
@@ -131,9 +136,31 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
 
     headerPanel.add(titlePanel, BorderLayout.WEST)
 
+    // Right side with status and help icon
+    val rightPanel = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.RIGHT, 8, 0))
+    rightPanel.isOpaque = false
+
     val statusLabel = JBLabel()
     updateStatusLabel(statusLabel)
-    headerPanel.add(statusLabel, BorderLayout.EAST)
+    rightPanel.add(statusLabel)
+
+    val helpIcon = JBLabel(AllIcons.General.ContextHelp)
+    helpIcon.toolTipText = "View usage examples"
+    helpIcon.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+    helpIcon.addMouseListener(object : MouseAdapter() {
+      override fun mouseClicked(e: MouseEvent?) {
+        try {
+          Desktop.getDesktop().browse(
+            URI("https://www.revenuecat.com/docs/tools/mcp/usage-examples"),
+          )
+        } catch (ex: Exception) {
+          // Ignore
+        }
+      }
+    })
+    rightPanel.add(helpIcon)
+
+    headerPanel.add(rightPanel, BorderLayout.EAST)
 
     return headerPanel
   }
@@ -309,7 +336,7 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
 
     val messageRow = createMessageRow(message)
     chatHistoryPanel.add(messageRow)
-    chatHistoryPanel.add(Box.createVerticalStrut(JBUI.scale(5)))
+    chatHistoryPanel.add(Box.createVerticalStrut(JBUI.scale(12)))
 
     chatHistoryPanel.revalidate()
     chatHistoryPanel.repaint()
@@ -373,8 +400,17 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
       rowPanel.add(leftPanel, BorderLayout.CENTER)
     }
 
-    // Constrain the row height to its preferred size (prevents BoxLayout from stretching)
-    rowPanel.maximumSize = Dimension(Int.MAX_VALUE, rowPanel.preferredSize.height)
+    // Defer maxSize calculation until after layout is complete (double invokeLater for first message)
+    SwingUtilities.invokeLater {
+      SwingUtilities.invokeLater {
+        rowPanel.maximumSize = Dimension(
+          Int.MAX_VALUE,
+          rowPanel.preferredSize.height + JBUI.scale(4),
+        )
+        chatHistoryPanel.revalidate()
+        chatHistoryPanel.repaint()
+      }
+    }
 
     return rowPanel
   }
@@ -432,15 +468,19 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
     val colorHex = String.format("#%06X", textColor.rgb and 0xFFFFFF)
 
     // Add rules one at a time with simple CSS (Swing doesn't support CSS3)
+    // Use theme-aware colors for code blocks
+    val codeBgColor = if (JBColor.isBright()) "#E8E8E8" else "#4A4A4A"
+    val preBgColor = if (JBColor.isBright()) "#F5F5F5" else "#3C3C3C"
+
     styleSheet.addRule("body { font-size: 13pt; color: $colorHex; margin: 0; padding: 0; }")
     styleSheet.addRule("p { margin: 4px 0; }")
     styleSheet.addRule("strong { font-weight: bold; }")
     styleSheet.addRule("em { font-style: italic; }")
     styleSheet.addRule(
-      "code { font-family: monospace; background-color: #E8E8E8; padding: 2px 4px; }",
+      "code { font-family: monospace; background-color: $codeBgColor; padding: 2px 4px; }",
     )
     styleSheet.addRule(
-      "pre { background-color: #F5F5F5; padding: 8px; font-size: 11pt; font-family: monospace; }",
+      "pre { background-color: $preBgColor; padding: 8px; font-size: 11pt; font-family: monospace; }",
     )
     styleSheet.addRule("ul { margin: 4px 0; padding-left: 20px; }")
     styleSheet.addRule("ol { margin: 4px 0; padding-left: 20px; }")

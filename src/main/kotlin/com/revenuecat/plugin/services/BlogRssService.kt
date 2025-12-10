@@ -222,19 +222,24 @@ object BlogRssService {
   }
 
   /**
-   * Save articles to cache
+   * Save articles to cache (does NOT update lastKnownBlogArticleUrl - that's done on notification)
    */
   private fun saveCachedArticles(articles: List<BlogArticle>) {
     try {
       val settings = RevenueCatSettingsState.getInstance()
       settings.cachedBlogArticles = json.encodeToString(articles)
-
-      // Update last known article URL
-      if (articles.isNotEmpty()) {
-        settings.lastKnownBlogArticleUrl = articles.first().url
-      }
     } catch (e: Exception) {
       LOG.warn("Failed to save cached articles: ${e.message}")
+    }
+  }
+
+  /**
+   * Mark the newest article as seen (call this after showing notification)
+   */
+  fun markNewestArticleAsSeen(articles: List<BlogArticle>) {
+    if (articles.isNotEmpty()) {
+      val settings = RevenueCatSettingsState.getInstance()
+      settings.lastKnownBlogArticleUrl = articles.first().url
     }
   }
 
