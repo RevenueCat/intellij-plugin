@@ -17,48 +17,91 @@ package com.revenuecat.plugin.services
 
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
+import com.intellij.openapi.util.Disposer
 import com.revenuecat.plugin.settings.RevenueCatSettingsState
 import com.revenuecat.plugin.wizard.BlogArticlesDialog
 import java.awt.Desktop
 import java.net.URI
+import java.util.Timer
+import java.util.TimerTask
 
 /**
- * Service that checks for new blog articles on IDE startup and shows notifications
+ * Service that checks for new blog articles periodically and shows notifications
  */
 class BlogNotificationService : ProjectActivity {
+
+  companion object {
+    // Check every 30 minutes (in milliseconds)
+    private const val CHECK_INTERVAL_MS = 30 * 60 * 1000L
+
+    // Initial delay of 10 seconds after startup
+    private const val INITIAL_DELAY_MS = 10 * 1000L
+
+    // Track if periodic check is already started (to avoid multiple timers across projects)
+    @Volatile
+    private var isPeriodicCheckStarted = false
+  }
 
   override suspend fun execute(project: Project) {
     val settings = RevenueCatSettingsState.getInstance()
 
-    // Only check if notifications are enabled
+    // Only start periodic checking if notifications are enabled
     if (!settings.notifyBlogArticles) {
       return
     }
 
-    // Fetch and check for new articles
-    checkForNewArticles(project)
+    // Only start one timer globally (avoid multiple notifications when multiple projects are open)
+    synchronized(this) {
+      if (isPeriodicCheckStarted) {
+        return
+      }
+      isPeriodicCheckStarted = true
+    }
+
+    // Start periodic checking
+    startPeriodicCheck(project)
+  }
+
+  private fun startPeriodicCheck(project: Project) {
+    val timer = Timer("BlogNotificationChecker", true)
+    val disposable = Disposable { timer.cancel() }
+
+    // Register disposable to cancel timer when project closes
+    Disposer.register(project, disposable)
+
+    timer.scheduleAtFixedRate(
+      object : TimerTask() {
+        override fun run() {
+          val settings = RevenueCatSettingsState.getInstance()
+          if (settings.notifyBlogArticles) {
+            checkForNewArticles(project)
+          }
+        }
+      },
+      INITIAL_DELAY_MS,
+      CHECK_INTERVAL_MS,
+    )
   }
 
   private fun checkForNewArticles(project: Project) {
-    Thread {
-      try {
-        BlogRssService.fetchAndCacheArticles { articles ->
-          if (articles.isNotEmpty()) {
-            val newArticle = BlogRssService.getNewArticle(articles)
-            if (newArticle != null) {
-              showNewArticleNotification(project, newArticle)
-            }
-          }
+    BlogRssService.fetchAndCacheArticles { articles ->
+      if (articles.isNotEmpty()) {
+        val newArticle = BlogRssService.getNewArticle(articles)
+        if (newArticle != null) {
+          showNewArticleNotification(project, newArticle, articles)
         }
-      } catch (e: Exception) {
-        // Silently fail - don't bother user with errors for background checks
       }
-    }.start()
+    }
   }
 
-  private fun showNewArticleNotification(project: Project, article: BlogRssService.BlogArticle) {
+  private fun showNewArticleNotification(
+    project: Project,
+    article: BlogRssService.BlogArticle,
+    allArticles: List<BlogRssService.BlogArticle>,
+  ) {
     val notification = NotificationGroupManager.getInstance()
       .getNotificationGroup("RevenueCat Notifications")
       .createNotification(
@@ -91,8 +134,7 @@ class BlogNotificationService : ProjectActivity {
 
     notification.notify(project)
 
-    // Update last known article URL so we don't notify again
-    val settings = RevenueCatSettingsState.getInstance()
-    settings.lastKnownBlogArticleUrl = article.url
+    // Mark the newest article as seen so we don't notify again
+    BlogRssService.markNewestArticleAsSeen(allArticles)
   }
 }
