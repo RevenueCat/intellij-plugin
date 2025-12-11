@@ -170,7 +170,7 @@ class RevenueCatSettingsComponent {
         false,
       )
       .addComponentToRightColumn(
-        JBLabel("<html><small>Your OpenAI or Anthropic API key</small></html>"),
+        JBLabel("<html><small>Your AI platform API key</small></html>"),
         0,
       )
       .addComponentFillVertically(JPanel(), 0)
