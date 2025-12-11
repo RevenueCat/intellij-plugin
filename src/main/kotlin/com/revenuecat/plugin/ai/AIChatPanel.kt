@@ -70,6 +70,7 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
   private val clearButton = JButton()
   private val scope = CoroutineScope(Dispatchers.Default)
   private var scrollPane: JBScrollPane? = null
+  private var statusLabel: JBLabel? = null
 
   // Markdown parser for rendering AI responses
   private val markdownFlavour = CommonMarkFlavourDescriptor()
@@ -90,6 +91,15 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
     background = JBColor(0xFAFAFA, 0x2B2B2B)
 
     setupUI()
+
+    // Update status label when panel becomes visible
+    addHierarchyListener { e ->
+      if ((e.changeFlags and java.awt.event.HierarchyEvent.SHOWING_CHANGED.toLong()) != 0L) {
+        if (isShowing) {
+          statusLabel?.let { updateStatusLabel(it) }
+        }
+      }
+    }
   }
 
   private fun setupUI() {
@@ -140,8 +150,8 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
     val rightPanel = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.RIGHT, 8, 0))
     rightPanel.isOpaque = false
 
-    val statusLabel = JBLabel()
-    updateStatusLabel(statusLabel)
+    statusLabel = JBLabel()
+    updateStatusLabel(statusLabel!!)
     rightPanel.add(statusLabel)
 
     val helpIcon = JBLabel(AllIcons.General.ContextHelp)
@@ -379,22 +389,24 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
     val bubblePanel = createBubblePanel(message)
 
     if (message.isUser) {
-      // User messages on the right
+      // User messages on the right with content-based width
       val rightAlign = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.RIGHT, 0, 0))
       rightAlign.isOpaque = false
       rightAlign.add(bubblePanel)
       rowPanel.add(rightAlign, BorderLayout.CENTER)
     } else {
-      // AI messages on the left with avatar
+      // AI messages on the left with avatar - bubble fills available width
       val leftPanel = JBPanel<JBPanel<*>>(BorderLayout())
       leftPanel.isOpaque = false
 
       val avatarPanel = createAvatarPanel(message.isUser)
       leftPanel.add(avatarPanel, BorderLayout.WEST)
 
-      val contentPanel = JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.LEFT, 8, 0))
+      // Use BorderLayout for bubble to fill available width
+      val contentPanel = JBPanel<JBPanel<*>>(BorderLayout())
       contentPanel.isOpaque = false
-      contentPanel.add(bubblePanel)
+      contentPanel.border = JBUI.Borders.emptyLeft(8)
+      contentPanel.add(bubblePanel, BorderLayout.CENTER)
       leftPanel.add(contentPanel, BorderLayout.CENTER)
 
       rowPanel.add(leftPanel, BorderLayout.CENTER)
@@ -518,6 +530,8 @@ class AIChatPanel : JBPanel<JBPanel<*>>() {
    */
   fun refresh() {
     ApplicationManager.getApplication().invokeLater {
+      // Update the status label to reflect new settings
+      statusLabel?.let { updateStatusLabel(it) }
       clearChat()
     }
   }
