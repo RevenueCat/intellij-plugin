@@ -40,6 +40,18 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h3>1.0.1</h3>
+    <ul>
+        <li>AI Assistant: Modern chat bubble UI with markdown rendering</li>
+        <li>AI Assistant: Added Google Gemini support (Gemini 2.5 Flash, Gemini 2.5 Pro)</li>
+        <li>AI Assistant: Dynamic status label updates when switching AI models</li>
+        <li>AI Assistant: Added help icon linking to MCP usage examples</li>
+        <li>Release Notes: Markdown rendering for SDK release notes</li>
+        <li>Blog Notifications: Periodic checking every 30 minutes (instead of startup only)</li>
+        <li>Blog Notifications: Fixed duplicate notifications when multiple projects are open</li>
+        <li>UI: Improved chat bubble spacing and code block colors for dark mode</li>
+        <li>UI: AI message bubbles now expand to fill available panel width</li>
+    </ul>
     <h3>1.0.0</h3>
     <ul>
         <li>Initial release</li>
